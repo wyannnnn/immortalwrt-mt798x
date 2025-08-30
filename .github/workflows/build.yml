@@ -1,4 +1,4 @@
-name: Build ImmortalWrt for AX6000
+name: Build ImmortalWrt for AX6000 (Debug Log)
 
 on:
   workflow_dispatch:
@@ -20,7 +20,6 @@ jobs:
 
     - name: Use official device config
       run: |
-        # 将作者预设的AX6000配置模板复制到 .config
         cp defconfig/mt7986-ax6000.config .config
         
     - name: Update and install feeds
@@ -30,19 +29,29 @@ jobs:
 
     - name: Finalize config
       run: |
-        # 让系统根据 .config 文件自动展开所有依赖项
         make defconfig
             
     - name: Make download
       run: |
         make download -j$(nproc)
 
-    - name: Compile the firmware
+    - name: Compile the firmware (Log to file)
       run: |
-        make -j$(nproc) V=s
+        # 使用 tee 命令将日志输出到 build.log 文件，同时在屏幕上显示
+        # `|| true` 确保即使 make 命令失败，这个步骤也会被标记为成功，以便后续上传日志
+        make -j$(nproc) V=s 2>&1 | tee build.log || true
+      env:
+        LANG: C.UTF-8
+        LC_ALL: C.UTF-8
 
     - name: Upload firmware
       uses: actions/upload-artifact@v4
       with:
         name: immortalwrt-ax6000-firmware
         path: bin/targets/mediatek/filogic/*
+
+    - name: Upload build log
+      uses: actions/upload-artifact@v4
+      with:
+        name: build-log
+        path: build.log
